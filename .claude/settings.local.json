@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(java *)",
+      "Bash(mvn compile *)",
+      "Bash(where mvn *)",
+      "WebSearch"
+    ]
+  }
+}
