@@ -53,7 +53,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         //符合验证规则，生成验证码
-        String code = RandomUtil.randomNumbers(6);
+        String code = "000000";  // TODO: 测试完后改回 RandomUtil.randomNumbers(6)
 
         //保存验证码到redis中，设置有效期为2分钟
         stringRedisTemplate.opsForValue().set(LOGIN_CODE_KEY+phone, code, LOGIN_CODE_TTL, TimeUnit.MINUTES);

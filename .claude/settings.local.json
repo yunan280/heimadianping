@@ -4,7 +4,13 @@
       "Bash(java *)",
       "Bash(mvn compile *)",
       "Bash(where mvn *)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(ping -n 4 github.com)",
+      "Bash(timeout 10 bash -c 'echo | cat < /dev/tcp/github.com/443 && echo \"443 OK\"')",
+      "Bash(timeout 2 bash -c 'echo > /dev/tcp/127.0.0.1/__TRACKED_VAR__ && echo '\\\\''__TRACKED_VAR__: OPEN'\\\\''')",
+      "Bash(netsh winhttp *)",
+      "Bash(mvn clean *)",
+      "Bash(javap -p -c target/classes/com/hmdp/utils/RedisIdWorker.class)"
     ]
   }
 }
