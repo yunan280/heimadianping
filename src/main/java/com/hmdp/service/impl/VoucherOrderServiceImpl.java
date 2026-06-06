@@ -10,8 +10,11 @@ import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
-import com.hmdp.utils.UserHolder;
-import org.springframework.stereotype.Service;
+ import com.hmdp.utils.SimpleRedisLock;
+ import com.hmdp.utils.UserHolder;
+ import org.springframework.aop.framework.AopContext;
+ import org.springframework.data.redis.core.StringRedisTemplate;
+ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
@@ -34,8 +37,10 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private ISeckillVoucherService seckillVoucherService;
     @Resource
     private RedisIdWorker redisIdWorker;
+    @Resource
     private UserHolder ThreadLocalUtls;
-
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
     @Transactional
     @Override
     public Result seckillVoucher(Long voucherId) {
@@ -53,14 +58,46 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         if (voucher.getStock() < 1) {
             return Result.fail("秒杀券已抢空");
         }
-        // 3、判断当前用户是否是第一单
+        // 3、创建订单
+        Long userId = ThreadLocalUtls.getUser().getId();
+
+        //创建锁对象
+        SimpleRedisLock Lock = new SimpleRedisLock(stringRedisTemplate, "order:" + userId);
+        //获取锁
+        boolean isLock = Lock.tryLock(1200);
+        if (!isLock) {
+            // 获取锁失败，返回失败信息或者重试
+            return Result.fail("不允许重复下单");
+        }
+
+        try {
+            // 创建代理对象，使用代理对象调用第三方事务方法， 防止事务失效
+            IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
+            return proxy.createVoucherOrder(userId, voucherId);
+        } finally {
+            Lock.unLock();
+        }
+
+    }
+
+    /**
+     * 创建订单
+     *
+     * @param userId
+     * @param voucherId
+     * @return
+     */
+    @Transactional
+    public Result createVoucherOrder(Long userId, Long voucherId) {
+//        synchronized (userId.toString().intern()) {
+        // 1、判断当前用户是否是第一单
         long count = this.count(new LambdaQueryWrapper<VoucherOrder>()
-                .eq(VoucherOrder::getUserId, ThreadLocalUtls.getUser().getId()));
+                .eq(VoucherOrder::getUserId, userId));
         if (count >= 1) {
             // 当前用户不是第一单
             return Result.fail("用户已购买");
         }
-        // 4、用户是第一单，可以下单，秒杀券库存数量减一
+        // 2、用户是第一单，可以下单，秒杀券库存数量减一
         boolean flag = seckillVoucherService.update(new LambdaUpdateWrapper<SeckillVoucher>()
                 .eq(SeckillVoucher::getVoucherId, voucherId)
                 .gt(SeckillVoucher::getStock, 0)
@@ -68,7 +105,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         if (!flag) {
             throw new RuntimeException("秒杀券扣减失败");
         }
-        // 5、创建对应的订单，并保存到数据库
+        // 3、创建对应的订单，并保存到数据库
         VoucherOrder voucherOrder = new VoucherOrder();
         long orderId = redisIdWorker.nextId(SECKILL_VOUCHER_ORDER);
         voucherOrder.setId(orderId);
@@ -78,11 +115,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         if (!flag) {
             throw new RuntimeException("创建秒杀券订单失败");
         }
-        // 6、返回订单id
+        // 4、返回订单id
         return Result.ok(orderId);
-
-
-
     }
+
 
 }
