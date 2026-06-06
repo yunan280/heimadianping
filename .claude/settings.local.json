@@ -10,7 +10,10 @@
       "Bash(timeout 2 bash -c 'echo > /dev/tcp/127.0.0.1/__TRACKED_VAR__ && echo '\\\\''__TRACKED_VAR__: OPEN'\\\\''')",
       "Bash(netsh winhttp *)",
       "Bash(mvn clean *)",
-      "Bash(javap -p -c target/classes/com/hmdp/utils/RedisIdWorker.class)"
+      "Bash(javap -p -c target/classes/com/hmdp/utils/RedisIdWorker.class)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }
